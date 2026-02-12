@@ -122,7 +122,7 @@ MASCOTS = {
     'UNLV': {"mascot": 'Rebels', "type": 'human'},
     'USC': {"mascot": 'Trojans', "type": 'human'},
     'Utah': {"mascot": 'Utes', "type": 'human'},
-    'Utah State': {"mascot": 'Aggies', "type": 'human'},
+    'Utah State': {"mascot": 'Aggies', "type": 'bovine'},
     'UTEP': {"mascot": 'Miners', "type": 'human'},
     'UTSA': {"mascot": 'Roadrunners', "type": 'bird'},
     'Vanderbilt': {"mascot": 'Commodores', "type": 'human'},

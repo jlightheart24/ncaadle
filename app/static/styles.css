@@ -526,6 +526,8 @@ button:active {
   width: 100%;
   max-width: 100%;
   min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
   border: 1px solid rgba(0, 145, 234, 0.12);
   border-radius: 10px;
   background: rgba(0, 145, 234, 0.02);

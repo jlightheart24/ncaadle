@@ -58,7 +58,9 @@ const panState = {
   max: 0,
   dragging: false,
   startX: 0,
+  startY: 0,
   startOffset: 0,
+  startScrollTop: 0,
 };
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -111,7 +113,9 @@ const setupHistoryPan = () => {
     event.preventDefault();
     panState.dragging = true;
     panState.startX = event.clientX;
+    panState.startY = event.clientY;
     panState.startOffset = panState.offset;
+    panState.startScrollTop = historyScroll.scrollTop;
     historyScroll.classList.add('is-dragging');
     if (historyScroll.setPointerCapture) {
       historyScroll.setPointerCapture(event.pointerId);
@@ -122,7 +126,9 @@ const setupHistoryPan = () => {
     if (!panState.dragging) return;
     event.preventDefault();
     const deltaX = event.clientX - panState.startX;
+    const deltaY = event.clientY - panState.startY;
     panState.offset = clamp(panState.startOffset + deltaX, -panState.max, 0);
+    historyScroll.scrollTop = panState.startScrollTop - deltaY;
     applyPan();
   });
 
@@ -141,14 +147,18 @@ const setupHistoryPan = () => {
     event.preventDefault();
     panState.dragging = true;
     panState.startX = event.clientX;
+    panState.startY = event.clientY;
     panState.startOffset = panState.offset;
+    panState.startScrollTop = historyScroll.scrollTop;
     historyScroll.classList.add('is-dragging');
   });
   window.addEventListener('mousemove', (event) => {
     if (!panState.dragging) return;
     event.preventDefault();
     const deltaX = event.clientX - panState.startX;
+    const deltaY = event.clientY - panState.startY;
     panState.offset = clamp(panState.startOffset + deltaX, -panState.max, 0);
+    historyScroll.scrollTop = panState.startScrollTop - deltaY;
     applyPan();
   });
   window.addEventListener('mouseup', stopDrag);
@@ -156,11 +166,10 @@ const setupHistoryPan = () => {
   historyScroll.addEventListener(
     'wheel',
     (event) => {
-      const dominantDelta =
-        Math.abs(event.deltaX) > Math.abs(event.deltaY) ? -event.deltaX : -event.deltaY;
-      if (!dominantDelta) return;
+      // Keep native vertical wheel scrolling; only map horizontal wheel to pan.
+      if (Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
       event.preventDefault();
-      panBy(dominantDelta);
+      panBy(-event.deltaX);
     },
     { passive: false }
   );
@@ -284,8 +293,8 @@ const appendHistory = (data) => {
     titleCase(data.guessedAlternateColorName || data.guessedAlternateColor || 'Unknown'),
     altColorClass
   );
-  addBox('Conference Championships', conferenceChampionshipsText, conferenceChampionshipsClass);
-  addBox('Championships', championshipText, championshipsClass);
+  addBox('Conf. Champ', conferenceChampionshipsText, conferenceChampionshipsClass);
+  addBox('Champs', championshipText, championshipsClass);
   addBox('Heismans', heismansText, heismansClass, 'result-box--narrow');
 
   wrapper.appendChild(grid);
