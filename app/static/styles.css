@@ -23,6 +23,7 @@ body {
   padding: 0;
   overflow-x: hidden;
   scrollbar-gutter: stable;
+  overflow-y: hidden;
 }
 
 .shell {
@@ -270,6 +271,7 @@ body {
   margin-top: 0;
   display: grid;
   gap: 0.9rem;
+  min-width: 0;
 }
 
 .label {
@@ -470,28 +472,76 @@ button:active {
 .history {
   margin-top: 0.5rem;
   width: 100%;
+  min-width: 0;
 }
 
 .history .eyebrow {
   margin-bottom: 10px;
 }
 
+.history-controls {
+  display: flex;
+  justify-content: flex-start;
+  gap: 0.4rem;
+  margin-bottom: 8px;
+}
+
+.history-nav {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 145, 234, 0.3);
+  background: rgba(0, 145, 234, 0.1);
+  color: var(--blue-deep);
+  font-weight: 700;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.history-nav:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .history-list {
   display: grid;
   gap: 0.8rem;
-  max-height: 45vh;
-  overflow: auto;
-  padding-right: 0.25rem;
-  width: 100%;
-  min-width: 0;
-  margin-bottom: 10px;
+  width: max-content;
+  min-width: max-content;
+  will-change: transform;
+  transform: translateX(0);
+  transition: transform 80ms linear;
 }
+
+.history-scroll.is-dragging {
+  cursor: grabbing;
+}
+
+.history-scroll {
+  max-height: 45vh;
+  padding: 2px 0.25rem 6px 0;
+  margin-bottom: 10px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  border: 1px solid rgba(0, 145, 234, 0.12);
+  border-radius: 10px;
+  background: rgba(0, 145, 234, 0.02);
+  cursor: grab;
+  touch-action: pan-y;
+  clip-path: inset(0 round 10px);
+  contain: inline-size;
+}
+
 
 .history-item {
   border: none;
   border-radius: 0;
   padding: 0;
   background: transparent;
+  width: max-content;
 }
 
 .history-item__header {
@@ -530,8 +580,6 @@ button:active {
   grid-auto-flow: column;
   grid-auto-columns: max-content;
   gap: 0.6rem;
-  overflow-x: hidden;
-  overflow-y: hidden;
   padding-bottom: 0.35rem;
   min-width: max-content;
   margin-left: 0;
