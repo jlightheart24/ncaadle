@@ -1,0 +1,25 @@
+COLORS = {
+    # Example override:
+    # "Alabama": {"color": "Red", "alternateColor": "White"},
+    # Keys are canonical school names; values can be color names or hex codes.
+    "Texas": {"color": "Orange"},
+    "Vanderbilt": {"color": "Gold"},
+    "Navy": {"alternateColor": "Tan"},
+    "Northern Illinois": {"alternateColor": "Black"},
+    "Georgia Tech": {"alternateColor": "Gold"},
+    "Northwestern": {"color": "Purple"},
+    "Oregon": {"alternateColor": "Yellow"},
+    "South Florida": {"color": "Green", "alternateColor": "Tan"},
+    "Syracuse": {"color": "Orange"},
+    "Oregon State": {"alternateColor": "Orange"},
+    "Coastal Carolina": {"alternateColor": "Tan"},
+    "Rice": {"color": "Blue", "alternateColor": "Gray/Silver"},
+    "UCLA": {"alternateColor": "Tan"},
+    "Virginia": {"color": "Blue", "alternateColor": "Orange"},
+    "Boston College": {"alternateColor": "Gold"},
+    "South Carolina": {"alternateColor": "Black"},
+    "Miami": {"alternateColor": "Orange"},
+    "Texas State": {"color": "Red", "alternateColor": "Gold"},
+    "Temple": {"color": "Red"},
+    "West Virginia": {"alternateColor": "Yellow"},
+}

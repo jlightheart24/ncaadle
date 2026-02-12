@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NCAAdle</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <main class="shell">
+    <div class="card">
+      <header class="card__header">
+        <div class="pill">Daily Guess</div>
+        <div>
+          <h1 class="brand">
+            <img class="brand__ncaa" src="{{ url_for('static', filename='images/ncaa_logo.png') }}" alt="NCAA" />
+            <span class="brand__suffix">dle</span>
+          </h1>
+        </div>
+      </header>
+      <section class="how-to">
+        <p class="eyebrow">How to play</p>
+        <ul class="steps">
+          <li>Type a team name and hit enter to lock in your guess.</li>
+          <li>You'll get feedback on how your guess compares to the target team in several categories.</li>
+          <li>Green means your guess is correct in that category. Red is incorrect.</li>
+          <li>
+            Yellow means that you are close in that category.
+            <button type="button" class="breakdown-link" id="breakdown-toggle">Click here</button>
+            for a more detailed breakdown of close guesses.
+          </li>
+        </ul>
+      </section>
+      <div id="breakdown-modal" class="modal" hidden aria-hidden="true" role="dialog" aria-labelledby="breakdown-title">
+        <div class="modal__backdrop" data-modal-close></div>
+        <div class="modal__panel" role="document">
+          <div class="modal__header">
+            <button type="button" class="modal__close" id="breakdown-close" aria-label="Close breakdown">×</button>
+          </div>
+          <div class="modal__body">
+            <p class="modal__lead">Category definitions</p>
+            <ul class="modal__list">
+              <li><strong>School</strong>: Green = correct team. Red = incorrect team.</li>
+              <li><strong>Mascot</strong>: Green = exact mascot. Yellow = same mascot type. Red = different mascot.</li>
+              <li><strong>Conference</strong>: Green = correct conference. Red = incorrect conference.</li>
+              <li><strong>Color</strong>: Green = correct primary color. Yellow = matches the opponent color (primary vs alternate). Red = incorrect.</li>
+              <li><strong>Alternate</strong>: Green = correct alternate color. Yellow = matches the opponent color (alternate vs primary). Red = incorrect.</li>
+              <li><strong>Conference Championships</strong>: Green = correct number. Yellow = within ±1 (use arrows). Red = more than 1 off.</li>
+              <li><strong>Championships</strong>: Green = correct number. Yellow = within ±1 (use arrows). Red = more than 1 off.</li>
+              <li><strong>Heismans</strong>: Green = correct number. Yellow = within ±1 (use arrows). Red = more than 1 off.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="card__body">
+        <label for="guess" class="label">Your guess</label>
+        <div class="input-row">
+          <div class="input-with-suggestions">
+            <input id="guess" placeholder="e.g., Alabama" autocomplete="off" />
+            <div id="suggestions" class="suggestions"></div>
+          </div>
+          <button id="submit">Guess</button>
+        </div>
+        <p class="muted">Press enter to submit.</p>
+        <div class="history">
+          <p class="eyebrow">Guess history</p>
+          <div id="history" class="history-list" aria-live="polite"></div>
+        </div>
+        <div class="actions">
+          <button id="reset" class="ghost">Reset puzzle</button>
+        </div>
+      </div>
+    </div>
+  </main>
+  <script>
+    const guessInput = document.getElementById('guess');
+    const historyBox = document.getElementById('history');
+    
+    const suggestions = document.getElementById('suggestions');
+    const breakdownToggle = document.getElementById('breakdown-toggle');
+    const breakdownModal = document.getElementById('breakdown-modal');
+    const breakdownClose = document.getElementById('breakdown-close');
+    let teamsCache = [];
+
+    let attempts = 0;
+    const titleCase = (value = '') =>
+      value
+        .toString()
+        .split(' ')
+        .filter(Boolean)
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+
+    const openBreakdown = () => {
+      if (!breakdownModal) return;
+      breakdownModal.hidden = false;
+      breakdownModal.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('modal-open');
+    };
+
+    const closeBreakdown = () => {
+      if (!breakdownModal) return;
+      breakdownModal.hidden = true;
+      breakdownModal.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('modal-open');
+    };
+
+    if (breakdownToggle) {
+      breakdownToggle.addEventListener('click', openBreakdown);
+    }
+    if (breakdownClose) {
+      breakdownClose.addEventListener('click', closeBreakdown);
+    }
+    if (breakdownModal) {
+      breakdownModal.addEventListener('click', (event) => {
+        if (event.target && event.target.matches('[data-modal-close]')) {
+          closeBreakdown();
+        }
+      });
+    }
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && breakdownModal && !breakdownModal.hidden) {
+        closeBreakdown();
+      }
+    });
+    const appendHistory = (data) => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'history-item';
+
+      const grid = document.createElement('div');
+      grid.className = 'history-grid';
+
+      const addSchoolBox = (label, value, logoUrl, state) => {
+        const box = document.createElement('div');
+        box.className = `result-box result-box--wide ${state}`;
+        const eyebrow = document.createElement('p');
+        eyebrow.className = 'eyebrow';
+        eyebrow.textContent = label;
+        const row = document.createElement('div');
+        row.className = 'school-row';
+        const img = document.createElement('img');
+        img.className = 'result-logo';
+        if (logoUrl) {
+          img.src = logoUrl;
+          img.alt = value || 'Team logo';
+          img.style.display = 'inline-block';
+        } else {
+          img.alt = '';
+          img.style.display = 'none';
+        }
+        const val = document.createElement('p');
+        val.className = 'result-box__value result-box__value--school';
+        val.textContent = value || '—';
+        row.appendChild(img);
+        row.appendChild(val);
+        box.appendChild(eyebrow);
+        box.appendChild(row);
+        grid.appendChild(box);
+      };
+
+      const addBox = (label, value, state, extraClass = '') => {
+        const box = document.createElement('div');
+        box.className = `result-box ${state} ${extraClass}`.trim();
+        const eyebrow = document.createElement('p');
+        eyebrow.className = 'eyebrow';
+        eyebrow.textContent = label;
+        const val = document.createElement('p');
+        val.className = 'result-box__value';
+        val.textContent = value || '—';
+        box.appendChild(eyebrow);
+        box.appendChild(val);
+        grid.appendChild(box);
+      };
+
+      const championshipText = formatChampionships(
+        data.guessedChampionships,
+        data.championshipsComparison
+      );
+      const nearChampionships = typeof data.championships === 'number'
+        && typeof data.guessedChampionships === 'number'
+        && Math.abs(data.championships - data.guessedChampionships) === 1;
+      const championshipsClass = data.championshipsMatch
+        ? 'result-box--match'
+        : (nearChampionships ? 'result-box--near' : 'result-box--miss');
+      const heismansText = formatHeismans(
+        data.guessedHeismans,
+        data.heismansComparison
+      );
+      const heismansClass = data.heismansMatch
+        ? 'result-box--match'
+        : (data.heismansNear ? 'result-box--near' : 'result-box--miss');
+      const conferenceChampionshipsText = formatChampionships(
+        data.guessedConferenceChampionships,
+        data.conferenceChampionshipsComparison
+      );
+      const conferenceChampionshipsClass = data.conferenceChampionshipsMatch
+        ? 'result-box--match'
+        : (data.conferenceChampionshipsNear ? 'result-box--near' : 'result-box--miss');
+
+      addSchoolBox(
+        'School',
+        data.guessedSchool || 'Unknown',
+        data.guessedLogo,
+        data.result === 'correct' ? 'result-box--match' : 'result-box--miss'
+      );
+      const mascotClass = data.mascotMatch
+        ? 'result-box--match'
+        : (data.mascotNear ? 'result-box--near' : 'result-box--miss');
+      addBox('Mascot', titleCase(data.guessedMascot || 'Unknown'), mascotClass);
+      addBox('Conference', data.guessedConference || 'Unknown', data.conferenceMatch ? 'result-box--match' : 'result-box--miss');
+      const colorClass = data.colorMatch
+        ? 'result-box--match'
+        : (data.colorCrossMatch ? 'result-box--color-match' : 'result-box--miss');
+      addBox(
+        'Color',
+        titleCase(data.guessedColorName || data.guessedColor || 'Unknown'),
+        colorClass
+      );
+      const altColorClass = data.alternateColorMatch
+        ? 'result-box--match'
+        : (data.alternateColorCrossMatch ? 'result-box--color-match' : 'result-box--miss');
+      addBox(
+        'Alternate',
+        titleCase(data.guessedAlternateColorName || data.guessedAlternateColor || 'Unknown'),
+        altColorClass
+      );
+      addBox('Conference Championships', conferenceChampionshipsText, conferenceChampionshipsClass);
+      addBox('Championships', championshipText, championshipsClass);
+      addBox('Heismans', heismansText, heismansClass, 'result-box--narrow');
+
+      wrapper.appendChild(grid);
+      historyBox.prepend(wrapper);
+    };
+
+    // populate autocomplete options
+    const loadTeams = async () => {
+      try {
+        const res = await fetch('/teams');
+        teamsCache = await res.json();
+      } catch (e) {
+        // ignore autocomplete errors silently
+      }
+    };
+    loadTeams();
+
+    const renderSuggestions = (value) => {
+      suggestions.innerHTML = '';
+      if (!value) {
+        suggestions.style.display = 'none';
+        return;
+      }
+      const lower = value.toLowerCase();
+      const matches = teamsCache.filter(team => team.toLowerCase().includes(lower)).slice(0, 5);
+      if (!matches.length) {
+        suggestions.style.display = 'none';
+        return;
+      }
+      matches.forEach((team) => {
+        const item = document.createElement('div');
+        item.className = 'suggestions__item';
+        item.textContent = team;
+        item.onclick = () => {
+          guessInput.value = team;
+          suggestions.style.display = 'none';
+          guessInput.focus();
+        };
+        suggestions.appendChild(item);
+      });
+      suggestions.style.display = 'block';
+    };
+
+    guessInput.addEventListener('input', (e) => {
+      renderSuggestions(e.target.value.trim());
+    });
+    guessInput.addEventListener('blur', () => {
+      setTimeout(() => (suggestions.style.display = 'none'), 120);
+    });
+
+    const formatChampionships = (guessCount, comparison) => {
+      if (guessCount === null || guessCount === undefined) {
+        return 'Unknown';
+      }
+      if (comparison === 'equal') {
+        return `${guessCount}`;
+      }
+      if (comparison === 'more') {
+        return `${guessCount} ↑`;
+      }
+      return `${guessCount} ↓`;
+    };
+    const formatHeismans = (guessCount, comparison) => {
+      if (guessCount === null || guessCount === undefined) {
+        return 'Unknown';
+      }
+      if (comparison === 'equal') {
+        return `${guessCount}`;
+      }
+      if (comparison === 'more') {
+        return `${guessCount} ↑`;
+      }
+      return `${guessCount} ↓`;
+    };
+
+    const handleGuess = async () => {
+      const guess = guessInput.value.trim();
+      if (!guess) {
+        return;
+      }
+
+      const res = await fetch('/guess', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ guess })
+      });
+      const data = await res.json();
+
+      if (data.result === 'invalid') {
+        guessInput.value = '';
+        guessInput.focus();
+        return;
+      }
+
+      attempts += 1;
+      appendHistory(data);
+
+      guessInput.value = '';
+      guessInput.focus();
+    };
+
+    document.getElementById('submit').onclick = handleGuess;
+    guessInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        handleGuess();
+      }
+    });
+
+    document.getElementById('reset').onclick = async () => {
+      await fetch('/reset', { method: 'POST' });
+      attempts = 0;
+      historyBox.innerHTML = '';
+      guessInput.value = '';
+      guessInput.focus();
+    };
+  </script>
+</body>
+</html>
