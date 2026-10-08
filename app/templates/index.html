@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=7">
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=8">
 </head>
 <body>
   <header class="topbar">
@@ -18,7 +18,7 @@
         <img class="brand__logo" src="{{ url_for('static', filename='images/ncaa_logo.png') }}" alt="NCAA" />
         <span class="brand__suffix">dle</span>
       </h1>
-      <button type="button" class="icon-btn" id="breakdown-toggle" aria-label="How to play">?</button>
+      <button type="button" class="help-btn" id="breakdown-toggle">How to play</button>
     </div>
   </header>
 
@@ -59,18 +59,6 @@
       </div>
     </section>
 
-    <section class="near-key" aria-labelledby="near-key-title">
-      <h2 class="near-key__title" id="near-key-title"><i class="swatch swatch--near"></i>What yellow means</h2>
-      <dl class="near-key__list">
-        <div><dt>Mascot</dt><dd>Same type of mascot (e.g. both birds or both cats), but not the exact one.</dd></div>
-        <div><dt>Color</dt><dd>Your primary color is the answer's alternate color.</dd></div>
-        <div><dt>Alt</dt><dd>Your alternate color is the answer's primary color.</dd></div>
-        <div><dt>Conf. Titles</dt><dd>Off by exactly 1. The arrow points toward the answer.</dd></div>
-        <div><dt>Natl. Titles</dt><dd>Off by exactly 1. The arrow points toward the answer.</dd></div>
-        <div><dt>Heismans</dt><dd>Off by exactly 1. The arrow points toward the answer.</dd></div>
-      </dl>
-      <p class="near-key__note">School and Conference are only ever green or red.</p>
-    </section>
   </main>
 
   <div id="breakdown-modal" class="modal" hidden aria-hidden="true" role="dialog" aria-labelledby="breakdown-title">
@@ -97,6 +85,6 @@
     </div>
   </div>
 
-  <script src="{{ url_for('static', filename='app.js') }}?v=7"></script>
+  <script src="{{ url_for('static', filename='app.js') }}?v=8"></script>
 </body>
 </html>

@@ -137,6 +137,27 @@ body {
   border-color: var(--ink-soft);
 }
 
+.help-btn {
+  justify-self: end;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.help-btn:hover {
+  border-color: var(--ink-soft);
+}
+
 /* ---- Page ---- */
 
 .page {
@@ -457,61 +478,6 @@ body {
   transform: rotate(180deg);
 }
 
-/* ---- Yellow key ---- */
-
-.near-key {
-  max-width: 760px;
-  margin: 28px auto 0;
-  padding: 16px 18px;
-  border-radius: var(--radius);
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-left: 6px solid var(--near);
-}
-
-.near-key__title {
-  margin: 0 0 10px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--display);
-  font-weight: 800;
-  font-size: 1.15rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.near-key__list {
-  margin: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 10px 24px;
-}
-
-.near-key__list div {
-  min-width: 0;
-}
-
-.near-key__list dt {
-  font-family: var(--display);
-  font-weight: 700;
-  font-size: 0.9rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.near-key__list dd {
-  margin: 0;
-  color: var(--ink-soft);
-  font-size: 0.95rem;
-  line-height: 1.35;
-}
-
-.near-key__note {
-  margin: 12px 0 0;
-  color: var(--ink-soft);
-  font-size: 0.88rem;
-}
 
 /* ---- Modal ---- */
 
@@ -651,6 +617,13 @@ body {
 
   .brand__suffix {
     font-size: 2rem;
+  }
+
+  .help-btn {
+    height: 32px;
+    padding: 0 10px;
+    font-size: 0.8rem;
+    letter-spacing: 0.04em;
   }
 
   .page {
