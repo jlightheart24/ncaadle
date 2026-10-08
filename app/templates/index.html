@@ -5,79 +5,98 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NCAAdle</title>
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/ncaa_logo.png') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=5">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=7">
 </head>
 <body>
-  <main class="shell">
-    <div class="card">
-      <header class="card__header">
-        <div class="pill">Daily Guess</div>
-        <div>
-          <h1 class="brand">
-            <img class="brand__ncaa" src="{{ url_for('static', filename='images/ncaa_logo.png') }}" alt="NCAA" />
-            <span class="brand__suffix">dle</span>
-          </h1>
-          <p class="tagline">A college football wordle game</p>
-        </div>
-      </header>
-      <section class="how-to">
-        <p class="eyebrow">How to play</p>
-        <ul class="steps">
-          <li>Type a team name and hit enter to lock in your guess.</li>
-          <li>You'll get feedback on how your guess compares to the target team in several categories.</li>
-          <li>Green means your guess is correct in that category. Red is incorrect.</li>
-          <li>
-            Yellow means that you are close in that category.
-            <button type="button" class="breakdown-link" id="breakdown-toggle">Click here</button>
-            for a more detailed breakdown of close guesses.
-          </li>
-        </ul>
-      </section>
-      <div id="breakdown-modal" class="modal" hidden aria-hidden="true" role="dialog" aria-labelledby="breakdown-title">
-        <div class="modal__backdrop" data-modal-close></div>
-        <div class="modal__panel" role="document">
-          <div class="modal__header">
-            <button type="button" class="modal__close" id="breakdown-close" aria-label="Close breakdown">×</button>
-          </div>
-          <div class="modal__body">
-            <p class="modal__lead">Category definitions</p>
-            <ul class="modal__list">
-              <li><strong>School</strong>: Green = correct team. Red = incorrect team.</li>
-              <li><strong>Mascot</strong>: Green = exact mascot. Yellow = same mascot type. Red = different mascot.</li>
-              <li><strong>Mascot types</strong>: bear, bird, bovine, cat, dog, horse, human, insect, mythic, object, other, plant, reptile, weather.</li>
-              <li><strong>Conference</strong>: Green = correct conference. Red = incorrect conference.</li>
-              <li><strong>Color</strong>: Green = correct primary color. Yellow = matches the opponent color (primary vs alternate). Red = incorrect.</li>
-              <li><strong>Alternate</strong>: Green = correct alternate color. Yellow = matches the opponent color (alternate vs primary). Red = incorrect.</li>
-              <li><strong>Conference Championships</strong>: Green = correct number. Yellow = within ±1 (use arrows). Red = more than 1 off.</li>
-              <li><strong>Championships</strong>: Green = correct number. Yellow = within ±1 (use arrows). Red = more than 1 off.</li>
-              <li><strong>Heismans</strong>: Green = correct number. Yellow = within ±1 (use arrows). Red = more than 1 off.</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-      <div class="card__body">
-        <label for="guess" class="label">Your guess</label>
-        <div class="input-row">
-          <div class="input-with-suggestions">
-            <input id="guess" placeholder="e.g., Alabama" autocomplete="off" />
-            <div id="suggestions" class="suggestions"></div>
-          </div>
-          <button id="submit">Guess</button>
-        </div>
-        <p class="muted">Press enter to submit.</p>
-        <div class="history">
-          <p class="eyebrow">Guess history</p>
-          <div class="history-controls" aria-label="History navigation">
-            <button type="button" id="history-left" class="history-nav" aria-label="Pan history left">◀</button>
-            <button type="button" id="history-right" class="history-nav" aria-label="Pan history right">▶</button>
-          </div>
-          <div class="history-scroll">
-            <div id="history" class="history-list" aria-live="polite"></div>
-          </div>
-        </div>
-      </div>
+  <header class="topbar">
+    <div class="topbar__inner">
+      <span class="topbar__mode">Daily</span>
+      <h1 class="brand">
+        <img class="brand__logo" src="{{ url_for('static', filename='images/ncaa_logo.png') }}" alt="NCAA" />
+        <span class="brand__suffix">dle</span>
+      </h1>
+      <button type="button" class="icon-btn" id="breakdown-toggle" aria-label="How to play">?</button>
     </div>
+  </header>
+
+  <main class="page">
+    <p class="tagline">Guess today's college football team.</p>
+
+    <form class="guess-form" id="guess-form" autocomplete="off">
+      <label for="guess" class="visually-hidden">Your guess</label>
+      <div class="guess-field">
+        <input id="guess" placeholder="Type a team, e.g. Alabama" autocomplete="off" spellcheck="false" />
+        <div id="suggestions" class="suggestions" role="listbox"></div>
+      </div>
+      <button id="submit" type="submit" class="btn">Guess</button>
+    </form>
+
+    <div id="win-banner" class="win-banner" hidden></div>
+
+    <section class="board" aria-label="Guess history">
+      <div class="board__scroll">
+        <div class="board__grid">
+          <div class="board__meta">
+            <span>Guesses</span>
+            <span id="guess-count" class="board__count">0</span>
+          </div>
+          <div class="board__head" aria-hidden="true">
+            <span>School</span>
+            <span>Mascot</span>
+            <span>Conf.</span>
+            <span>Color</span>
+            <span>Alt</span>
+            <span>Conf. Titles</span>
+            <span>Natl. Titles</span>
+            <span>Heismans</span>
+          </div>
+          <div id="history" class="board__rows" aria-live="polite"></div>
+          <p class="board__empty" id="board-empty">Your guesses will show up here.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="near-key" aria-labelledby="near-key-title">
+      <h2 class="near-key__title" id="near-key-title"><i class="swatch swatch--near"></i>What yellow means</h2>
+      <dl class="near-key__list">
+        <div><dt>Mascot</dt><dd>Same type of mascot (e.g. both birds or both cats), but not the exact one.</dd></div>
+        <div><dt>Color</dt><dd>Your primary color is the answer's alternate color.</dd></div>
+        <div><dt>Alt</dt><dd>Your alternate color is the answer's primary color.</dd></div>
+        <div><dt>Conf. Titles</dt><dd>Off by exactly 1. The arrow points toward the answer.</dd></div>
+        <div><dt>Natl. Titles</dt><dd>Off by exactly 1. The arrow points toward the answer.</dd></div>
+        <div><dt>Heismans</dt><dd>Off by exactly 1. The arrow points toward the answer.</dd></div>
+      </dl>
+      <p class="near-key__note">School and Conference are only ever green or red.</p>
+    </section>
   </main>
-  <script src="{{ url_for('static', filename='app.js') }}?v=5"></script>
+
+  <div id="breakdown-modal" class="modal" hidden aria-hidden="true" role="dialog" aria-labelledby="breakdown-title">
+    <div class="modal__backdrop" data-modal-close></div>
+    <div class="modal__panel" role="document">
+      <div class="modal__header">
+        <h2 class="modal__title" id="breakdown-title">How to play</h2>
+        <button type="button" class="icon-btn" id="breakdown-close" aria-label="Close">×</button>
+      </div>
+      <p class="modal__intro">Guess the mystery FBS team. Each guess shows how your team compares across eight categories.</p>
+      <div class="legend">
+        <span class="legend__item"><i class="swatch swatch--match"></i>Correct</span>
+        <span class="legend__item"><i class="swatch swatch--near"></i>Close</span>
+        <span class="legend__item"><i class="swatch swatch--miss"></i>Wrong</span>
+      </div>
+      <dl class="rules">
+        <dt>School</dt><dd>Green if it's the right team.</dd>
+        <dt>Mascot</dt><dd>Green for the exact mascot. Yellow for the same mascot type: bear, bird, bovine, cat, dog, horse, human, insect, mythic, object, other, plant, reptile, weather.</dd>
+        <dt>Conference</dt><dd>Green if it's the same conference.</dd>
+        <dt>Color</dt><dd>Green for the correct primary color. Yellow if it matches the target's alternate color.</dd>
+        <dt>Alt</dt><dd>Green for the correct alternate color. Yellow if it matches the target's primary color.</dd>
+        <dt>Titles &amp; Heismans</dt><dd>Green for the exact number. Yellow if within 1. The arrow points toward the answer.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='app.js') }}?v=7"></script>
 </body>
 </html>

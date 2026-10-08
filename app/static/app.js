@@ -1,16 +1,17 @@
+const guessForm = document.getElementById('guess-form');
 const guessInput = document.getElementById('guess');
 const historyBox = document.getElementById('history');
 const suggestions = document.getElementById('suggestions');
 const breakdownToggle = document.getElementById('breakdown-toggle');
 const breakdownModal = document.getElementById('breakdown-modal');
 const breakdownClose = document.getElementById('breakdown-close');
-const historyScroll = document.querySelector('.history-scroll');
-const historyList = document.querySelector('.history-list');
-const historyLeft = document.getElementById('history-left');
-const historyRight = document.getElementById('history-right');
+const guessCount = document.getElementById('guess-count');
+const boardEmpty = document.getElementById('board-empty');
+const winBanner = document.getElementById('win-banner');
 
 let teamsCache = [];
 let attempts = 0;
+let activeSuggestion = -1;
 
 const titleCase = (value = '') =>
   value
@@ -20,287 +21,168 @@ const titleCase = (value = '') =>
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 
+// ---- Help modal ----
+
 const openBreakdown = () => {
-  if (!breakdownModal) return;
   breakdownModal.hidden = false;
   breakdownModal.setAttribute('aria-hidden', 'false');
   document.body.classList.add('modal-open');
+  breakdownClose.focus();
 };
 
 const closeBreakdown = () => {
-  if (!breakdownModal) return;
   breakdownModal.hidden = true;
   breakdownModal.setAttribute('aria-hidden', 'true');
   document.body.classList.remove('modal-open');
+  breakdownToggle.focus();
 };
 
-if (breakdownToggle) {
-  breakdownToggle.addEventListener('click', openBreakdown);
-}
-if (breakdownClose) {
-  breakdownClose.addEventListener('click', closeBreakdown);
-}
-if (breakdownModal) {
-  breakdownModal.addEventListener('click', (event) => {
-    if (event.target && event.target.matches('[data-modal-close]')) {
-      closeBreakdown();
-    }
-  });
-}
+breakdownToggle.addEventListener('click', openBreakdown);
+breakdownClose.addEventListener('click', closeBreakdown);
+breakdownModal.addEventListener('click', (event) => {
+  if (event.target.matches('[data-modal-close]')) closeBreakdown();
+});
 document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape' && breakdownModal && !breakdownModal.hidden) {
-    closeBreakdown();
-  }
+  if (event.key === 'Escape' && !breakdownModal.hidden) closeBreakdown();
 });
 
-const panState = {
-  offset: 0,
-  max: 0,
-  dragging: false,
-  startX: 0,
-  startY: 0,
-  startOffset: 0,
-  startScrollTop: 0,
+// ---- Board ----
+
+const stateClass = (match, near) => (match ? 'tile--match' : near ? 'tile--near' : 'tile--miss');
+
+const formatCount = (guessCount, comparison) => {
+  if (guessCount === null || guessCount === undefined) return { value: '?', arrow: '' };
+  if (comparison === 'equal') return { value: `${guessCount}`, arrow: '' };
+  return { value: `${guessCount}`, arrow: comparison === 'more' ? '↑' : '↓' };
 };
 
-const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+const makeTile = (state, label, index) => {
+  const tile = document.createElement('div');
+  tile.className = `tile ${state}`;
+  tile.style.setProperty('--i', index);
+  tile.setAttribute('aria-label', label);
+  return tile;
+};
 
-const updateHistoryButtons = () => {
-  if (historyLeft) {
-    historyLeft.disabled = panState.offset >= 0 || panState.max === 0;
+const textTile = (state, label, value, index) => {
+  const tile = makeTile(state, `${label}: ${value}`, index);
+  const span = document.createElement('span');
+  span.className = 'tile__text';
+  span.textContent = value;
+  tile.appendChild(span);
+  return tile;
+};
+
+const colorTile = (state, label, name, hex, index) => {
+  const tile = textTile(state, label, name, index);
+  if (hex) {
+    const dot = document.createElement('i');
+    dot.className = 'tile__swatch';
+    dot.style.background = hex;
+    tile.prepend(dot);
   }
-  if (historyRight) {
-    historyRight.disabled = panState.offset <= -panState.max || panState.max === 0;
+  return tile;
+};
+
+const countTile = (state, label, { value, arrow }, index) => {
+  const tile = makeTile(state, `${label}: ${value}${arrow ? `, answer is ${arrow === '↑' ? 'higher' : 'lower'}` : ''}`, index);
+  tile.classList.add('tile--count');
+  const num = document.createElement('span');
+  num.className = 'tile__num';
+  num.textContent = value;
+  tile.appendChild(num);
+  if (arrow) {
+    const arr = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    arr.setAttribute('class', `tile__arrow${arrow === '↓' ? ' tile__arrow--down' : ''}`);
+    arr.setAttribute('viewBox', '0 0 24 24');
+    arr.setAttribute('aria-hidden', 'true');
+    arr.innerHTML = '<path d="M12 20V5M5 11.5L12 4.5l7 7" />';
+    tile.appendChild(arr);
   }
+  return tile;
 };
 
-const applyPan = () => {
-  if (!historyList) return;
-  historyList.style.transform = `translateX(${panState.offset}px)`;
-  updateHistoryButtons();
-};
-
-const syncPanBounds = () => {
-  if (!historyScroll || !historyList) return;
-  const parentWidth = historyScroll.parentElement
-    ? historyScroll.parentElement.clientWidth
-    : historyScroll.clientWidth;
-  if (parentWidth > 0) {
-    historyScroll.style.width = `${parentWidth}px`;
+const schoolTile = (state, name, logoUrl) => {
+  const tile = makeTile(state, `School: ${name}`, 0);
+  tile.classList.add('tile--school');
+  if (logoUrl) {
+    const img = document.createElement('img');
+    img.className = 'tile__logo';
+    img.src = logoUrl;
+    img.alt = '';
+    tile.appendChild(img);
   }
-  panState.max = Math.max(0, historyList.scrollWidth - historyScroll.clientWidth);
-  panState.offset = clamp(panState.offset, -panState.max, 0);
-  applyPan();
+  const span = document.createElement('span');
+  span.className = 'tile__text';
+  span.textContent = name;
+  tile.appendChild(span);
+  return tile;
 };
 
-const panBy = (delta) => {
-  panState.offset = clamp(panState.offset + delta, -panState.max, 0);
-  applyPan();
-};
-
-const setupHistoryPan = () => {
-  if (!historyScroll || !historyList) return;
-
-  if (historyLeft) {
-    historyLeft.addEventListener('click', () => panBy(220));
-  }
-  if (historyRight) {
-    historyRight.addEventListener('click', () => panBy(-220));
-  }
-
-  historyScroll.addEventListener('pointerdown', (event) => {
-    if (event.button !== 0) return;
-    event.preventDefault();
-    panState.dragging = true;
-    panState.startX = event.clientX;
-    panState.startY = event.clientY;
-    panState.startOffset = panState.offset;
-    panState.startScrollTop = historyScroll.scrollTop;
-    historyScroll.classList.add('is-dragging');
-    if (historyScroll.setPointerCapture) {
-      historyScroll.setPointerCapture(event.pointerId);
-    }
-  });
-
-  historyScroll.addEventListener('pointermove', (event) => {
-    if (!panState.dragging) return;
-    event.preventDefault();
-    const deltaX = event.clientX - panState.startX;
-    const deltaY = event.clientY - panState.startY;
-    panState.offset = clamp(panState.startOffset + deltaX, -panState.max, 0);
-    historyScroll.scrollTop = panState.startScrollTop - deltaY;
-    applyPan();
-  });
-
-  const stopDrag = () => {
-    panState.dragging = false;
-    historyScroll.classList.remove('is-dragging');
-  };
-
-  historyScroll.addEventListener('pointerup', stopDrag);
-  historyScroll.addEventListener('pointercancel', stopDrag);
-  historyScroll.addEventListener('pointerleave', stopDrag);
-
-  // Mouse/touch fallback for environments where pointer events are flaky.
-  historyScroll.addEventListener('mousedown', (event) => {
-    if (event.button !== 0) return;
-    event.preventDefault();
-    panState.dragging = true;
-    panState.startX = event.clientX;
-    panState.startY = event.clientY;
-    panState.startOffset = panState.offset;
-    panState.startScrollTop = historyScroll.scrollTop;
-    historyScroll.classList.add('is-dragging');
-  });
-  window.addEventListener('mousemove', (event) => {
-    if (!panState.dragging) return;
-    event.preventDefault();
-    const deltaX = event.clientX - panState.startX;
-    const deltaY = event.clientY - panState.startY;
-    panState.offset = clamp(panState.startOffset + deltaX, -panState.max, 0);
-    historyScroll.scrollTop = panState.startScrollTop - deltaY;
-    applyPan();
-  });
-  window.addEventListener('mouseup', stopDrag);
-
-  historyScroll.addEventListener(
-    'wheel',
-    (event) => {
-      // Keep native vertical wheel scrolling; only map horizontal wheel to pan.
-      if (Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
-      event.preventDefault();
-      panBy(-event.deltaX);
-    },
-    { passive: false }
-  );
-
-  // Recompute bounds whenever entries change.
-  const observer = new MutationObserver(() => syncPanBounds());
-  observer.observe(historyList, { childList: true, subtree: true });
-
-  window.addEventListener('resize', syncPanBounds);
-  requestAnimationFrame(syncPanBounds);
-};
+const nearChampionships = (data) =>
+  typeof data.championships === 'number' &&
+  typeof data.guessedChampionships === 'number' &&
+  Math.abs(data.championships - data.guessedChampionships) === 1;
 
 const appendHistory = (data) => {
-  const wrapper = document.createElement('div');
-  wrapper.className = 'history-item';
+  const row = document.createElement('div');
+  row.className = 'board__row';
 
-  const grid = document.createElement('div');
-  grid.className = 'history-grid';
-
-  const addSchoolBox = (label, value, logoUrl, state) => {
-    const box = document.createElement('div');
-    box.className = `result-box result-box--wide ${state}`;
-    const eyebrow = document.createElement('p');
-    eyebrow.className = 'eyebrow';
-    eyebrow.textContent = label;
-    const row = document.createElement('div');
-    row.className = 'school-row';
-    const img = document.createElement('img');
-    img.className = 'result-logo';
-    if (logoUrl) {
-      img.src = logoUrl;
-      img.alt = value || 'Team logo';
-      img.style.display = 'inline-block';
-    } else {
-      img.alt = '';
-      img.style.display = 'none';
-    }
-    const val = document.createElement('p');
-    val.className = 'result-box__value result-box__value--school';
-    val.textContent = value || '—';
-    row.appendChild(img);
-    row.appendChild(val);
-    box.appendChild(eyebrow);
-    box.appendChild(row);
-    grid.appendChild(box);
-  };
-
-  const addBox = (label, value, state, extraClass = '') => {
-    const box = document.createElement('div');
-    box.className = `result-box ${state} ${extraClass}`.trim();
-    const eyebrow = document.createElement('p');
-    eyebrow.className = 'eyebrow';
-    eyebrow.textContent = label;
-    const val = document.createElement('p');
-    val.className = 'result-box__value';
-    val.textContent = value || '—';
-    box.appendChild(eyebrow);
-    box.appendChild(val);
-    grid.appendChild(box);
-  };
-
-  const championshipText = formatChampionships(
-    data.guessedChampionships,
-    data.championshipsComparison
+  const school = data.guessedSchool || 'Unknown';
+  row.append(
+    schoolTile(data.result === 'correct' ? 'tile--match' : 'tile--miss', school, data.guessedLogo),
+    textTile(
+      stateClass(data.mascotMatch, data.mascotNear),
+      'Mascot',
+      titleCase(data.guessedMascot || 'Unknown'),
+      1
+    ),
+    textTile(stateClass(data.conferenceMatch, false), 'Conference', data.guessedConference || 'Unknown', 2),
+    colorTile(
+      stateClass(data.colorMatch, data.colorCrossMatch),
+      'Color',
+      titleCase(data.guessedColorName || data.guessedColor || 'Unknown'),
+      data.guessedColor,
+      3
+    ),
+    colorTile(
+      stateClass(data.alternateColorMatch, data.alternateColorCrossMatch),
+      'Alternate color',
+      titleCase(data.guessedAlternateColorName || data.guessedAlternateColor || 'Unknown'),
+      data.guessedAlternateColor,
+      4
+    ),
+    countTile(
+      stateClass(data.conferenceChampionshipsMatch, data.conferenceChampionshipsNear),
+      'Conference titles',
+      formatCount(data.guessedConferenceChampionships, data.conferenceChampionshipsComparison),
+      5
+    ),
+    countTile(
+      stateClass(data.championshipsMatch, nearChampionships(data)),
+      'National titles',
+      formatCount(data.guessedChampionships, data.championshipsComparison),
+      6
+    ),
+    countTile(
+      stateClass(data.heismansMatch, data.heismansNear),
+      'Heismans',
+      formatCount(data.guessedHeismans, data.heismansComparison),
+      7
+    )
   );
-  const nearChampionships =
-    typeof data.championships === 'number' &&
-    typeof data.guessedChampionships === 'number' &&
-    Math.abs(data.championships - data.guessedChampionships) === 1;
-  const championshipsClass = data.championshipsMatch
-    ? 'result-box--match'
-    : nearChampionships
-      ? 'result-box--near'
-      : 'result-box--miss';
-  const heismansText = formatHeismans(data.guessedHeismans, data.heismansComparison);
-  const heismansClass = data.heismansMatch
-    ? 'result-box--match'
-    : data.heismansNear
-      ? 'result-box--near'
-      : 'result-box--miss';
-  const conferenceChampionshipsText = formatChampionships(
-    data.guessedConferenceChampionships,
-    data.conferenceChampionshipsComparison
-  );
-  const conferenceChampionshipsClass = data.conferenceChampionshipsMatch
-    ? 'result-box--match'
-    : data.conferenceChampionshipsNear
-      ? 'result-box--near'
-      : 'result-box--miss';
 
-  addSchoolBox(
-    'School',
-    data.guessedSchool || 'Unknown',
-    data.guessedLogo,
-    data.result === 'correct' ? 'result-box--match' : 'result-box--miss'
-  );
-  const mascotClass = data.mascotMatch
-    ? 'result-box--match'
-    : data.mascotNear
-      ? 'result-box--near'
-      : 'result-box--miss';
-  addBox('Mascot', titleCase(data.guessedMascot || 'Unknown'), mascotClass);
-  addBox(
-    'Conference',
-    data.guessedConference || 'Unknown',
-    data.conferenceMatch ? 'result-box--match' : 'result-box--miss'
-  );
-  const colorClass = data.colorMatch
-    ? 'result-box--match'
-    : data.colorCrossMatch
-      ? 'result-box--color-match'
-      : 'result-box--miss';
-  addBox('Color', titleCase(data.guessedColorName || data.guessedColor || 'Unknown'), colorClass);
-  const altColorClass = data.alternateColorMatch
-    ? 'result-box--match'
-    : data.alternateColorCrossMatch
-      ? 'result-box--color-match'
-      : 'result-box--miss';
-  addBox(
-    'Alternate',
-    titleCase(data.guessedAlternateColorName || data.guessedAlternateColor || 'Unknown'),
-    altColorClass
-  );
-  addBox('Conf. Champ', conferenceChampionshipsText, conferenceChampionshipsClass);
-  addBox('Champs', championshipText, championshipsClass);
-  addBox('Heismans', heismansText, heismansClass, 'result-box--narrow');
-
-  wrapper.appendChild(grid);
-  historyBox.prepend(wrapper);
-  syncPanBounds();
+  historyBox.prepend(row);
+  boardEmpty.hidden = true;
+  guessCount.textContent = attempts;
 };
+
+const showWin = (team) => {
+  winBanner.textContent = `${team} it is. Solved in ${attempts} ${attempts === 1 ? 'guess' : 'guesses'}.`;
+  winBanner.hidden = false;
+};
+
+// ---- Autocomplete ----
 
 const loadTeams = async () => {
   try {
@@ -312,70 +194,70 @@ const loadTeams = async () => {
 };
 loadTeams();
 
+const hideSuggestions = () => {
+  suggestions.classList.remove('is-open');
+  activeSuggestion = -1;
+};
+
+const highlightSuggestion = (index) => {
+  const items = suggestions.querySelectorAll('.suggestions__item');
+  items.forEach((item, i) => item.classList.toggle('is-active', i === index));
+  activeSuggestion = index;
+};
+
 const renderSuggestions = (value) => {
   suggestions.innerHTML = '';
-  if (!value) {
-    suggestions.style.display = 'none';
-    return;
-  }
+  if (!value) return hideSuggestions();
   const lower = value.toLowerCase();
   const matches = teamsCache.filter((team) => team.toLowerCase().includes(lower)).slice(0, 5);
-  if (!matches.length) {
-    suggestions.style.display = 'none';
-    return;
-  }
+  if (!matches.length) return hideSuggestions();
   matches.forEach((team) => {
     const item = document.createElement('div');
     item.className = 'suggestions__item';
+    item.setAttribute('role', 'option');
     item.textContent = team;
-    item.onclick = () => {
+    item.addEventListener('mousedown', (e) => {
+      e.preventDefault();
       guessInput.value = team;
-      suggestions.style.display = 'none';
+      hideSuggestions();
       guessInput.focus();
-    };
+    });
     suggestions.appendChild(item);
   });
-  suggestions.style.display = 'block';
+  activeSuggestion = -1;
+  suggestions.classList.add('is-open');
 };
 
-guessInput.addEventListener('input', (e) => {
-  renderSuggestions(e.target.value.trim());
-});
-guessInput.addEventListener('blur', () => {
-  setTimeout(() => (suggestions.style.display = 'none'), 120);
+guessInput.addEventListener('input', (e) => renderSuggestions(e.target.value.trim()));
+guessInput.addEventListener('blur', () => setTimeout(hideSuggestions, 120));
+guessInput.addEventListener('keydown', (e) => {
+  const items = suggestions.querySelectorAll('.suggestions__item');
+  if (!suggestions.classList.contains('is-open') || !items.length) return;
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    const step = e.key === 'ArrowDown' ? 1 : -1;
+    highlightSuggestion((activeSuggestion + step + items.length) % items.length);
+  } else if (e.key === 'Enter' && activeSuggestion >= 0) {
+    e.preventDefault();
+    guessInput.value = items[activeSuggestion].textContent;
+    hideSuggestions();
+  } else if (e.key === 'Escape') {
+    hideSuggestions();
+  }
 });
 
-const formatChampionships = (guessCount, comparison) => {
-  if (guessCount === null || guessCount === undefined) {
-    return 'Unknown';
-  }
-  if (comparison === 'equal') {
-    return `${guessCount}`;
-  }
-  if (comparison === 'more') {
-    return `${guessCount} ↑`;
-  }
-  return `${guessCount} ↓`;
-};
+// ---- Guessing ----
 
-const formatHeismans = (guessCount, comparison) => {
-  if (guessCount === null || guessCount === undefined) {
-    return 'Unknown';
-  }
-  if (comparison === 'equal') {
-    return `${guessCount}`;
-  }
-  if (comparison === 'more') {
-    return `${guessCount} ↑`;
-  }
-  return `${guessCount} ↓`;
+const shakeInput = () => {
+  guessForm.classList.remove('is-shaking');
+  void guessForm.offsetWidth;
+  guessForm.classList.add('is-shaking');
 };
 
 const handleGuess = async () => {
   const guess = guessInput.value.trim();
-  if (!guess) {
-    return;
-  }
+  if (!guess) return;
+  hideSuggestions();
 
   const res = await fetch('/guess', {
     method: 'POST',
@@ -385,6 +267,7 @@ const handleGuess = async () => {
   const data = await res.json();
 
   if (data.result === 'invalid') {
+    shakeInput();
     guessInput.value = '';
     guessInput.focus();
     return;
@@ -392,16 +275,15 @@ const handleGuess = async () => {
 
   attempts += 1;
   appendHistory(data);
+  if (data.result === 'correct') showWin(data.target || data.guessedSchool);
 
   guessInput.value = '';
   guessInput.focus();
 };
 
-document.getElementById('submit').onclick = handleGuess;
-guessInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') {
-    handleGuess();
-  }
+guessForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  handleGuess();
 });
 
 const resetButton = document.getElementById('reset');
@@ -410,10 +292,10 @@ if (resetButton) {
     await fetch('/reset', { method: 'POST' });
     attempts = 0;
     historyBox.innerHTML = '';
-    syncPanBounds();
+    guessCount.textContent = '0';
+    boardEmpty.hidden = false;
+    winBanner.hidden = true;
     guessInput.value = '';
     guessInput.focus();
   };
 }
-
-setupHistoryPan();
